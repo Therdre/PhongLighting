@@ -1,6 +1,8 @@
 #include <assert.h>
 #include "Graphics.h"
 
+using namespace DirectX;
+
 Graphics::Graphics(): swapchain(NULL), dev(NULL),devcon(NULL), backbuffer(NULL)
 {
 }
@@ -86,8 +88,8 @@ void Graphics::CreateShaders()
 {
 	// load and compile the two shaders
     ID3D10Blob *VS, *PS;
-    D3DX11CompileFromFile("VertexShader.shader", 0, 0, "VShader", "vs_4_0", 0, 0, 0, &VS, 0, 0);
-    D3DX11CompileFromFile("PixelShader.shader", 0, 0, "PShader", "ps_4_0", 0, 0, 0, &PS, 0, 0);
+    D3DCompileFromFile(L"VertexShader.shader", 0, 0, "VShader", "vs_4_0", 0, 0, &VS, 0);
+    D3DCompileFromFile(L"PixelShader.shader", 0, 0, "PShader", "ps_4_0", 0, 0, &PS, 0);
 
 	// encapsulate both shaders into shader objects
     dev->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), NULL, &pVS);
@@ -116,9 +118,9 @@ void Graphics::CreateBuffer()
 	// create a triangle using the VERTEX struct
     VERTEX OurVertices[] =
     {
-        {0.0f, 0.5f, 0.0f, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f)},
-        {0.45f, -0.5, 0.0f, D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f)},
-        {-0.45f, -0.5f, 0.0f, D3DXCOLOR(0.0f, 0.0f, 1.0f, 1.0f)}
+        {0.0f, 0.5f, 0.0f, PackedVector::XMCOLOR(1.0f, 0.0f, 0.0f, 1.0f)},
+        {0.45f, -0.5, 0.0f, PackedVector::XMCOLOR(0.0f, 1.0f, 0.0f, 1.0f)},
+        {-0.45f, -0.5f, 0.0f, PackedVector::XMCOLOR(0.0f, 0.0f, 1.0f, 1.0f)}
     };
 
 	D3D11_BUFFER_DESC bd;
@@ -170,7 +172,8 @@ void Graphics::CreateViewPort(int width, int height)
 void Graphics::Update(float dt)
 {
 	// clear the back buffer to a deep blue
-    devcon->ClearRenderTargetView(backbuffer, D3DXCOLOR(0.0f, 0.2f, 0.4f, 1.0f));
+	const float c[4]= { 0.0f, 0.2f, 0.4f, 1.0f };
+    devcon->ClearRenderTargetView(backbuffer, c);
 
     // select which vertex buffer to display
     UINT stride = sizeof(VERTEX);
