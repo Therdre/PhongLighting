@@ -1,7 +1,10 @@
 // include the basic windows header file
 #include <windows.h>
 #include <windowsx.h>
-#include "Graphics.h"
+#include <stdio.h>
+
+#include "GameLoop/GameLoop.h"
+#include "Graphics/Graphics.h"
 
 // the WindowProc function prototype
 LRESULT CALLBACK WindowProc(HWND hWnd,
@@ -54,8 +57,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
     // display the window on the screen
     ShowWindow(hWnd, nCmdShow);
 
-	Graphics g;
-	g.Initialize(hWnd, width,height);
+	Graphics::GetInstance().Initialize(hWnd, width, height);
     // enter the main loop:
 
     // this struct holds Windows event messages
@@ -79,11 +81,12 @@ int WINAPI WinMain(HINSTANCE hInstance,
 		}
 		else
 		{
-			g.Update(1.66f);
+			GameLoop::GetInstace().RunLoop();
+			
 		}
 	}
 
-	g.Close();
+	Graphics::GetInstance().Close();
     // return this part of the WM_QUIT message to Windows
     return msg.wParam;
 }

@@ -3,16 +3,26 @@
 
 using namespace DirectX;
 
-Graphics::Graphics(): swapchain(NULL), dev(NULL),devcon(NULL), backbuffer(NULL)
+Graphics::Graphics(): swapchain(NULL), dev(NULL),devcon(NULL), backbuffer(NULL), camera(Camera())
 {
+	
 }
 
 Graphics::~Graphics()
 {
 }
 
+Graphics& Graphics::GetInstance()
+{
+	static Graphics graphics;
+	return graphics;
+}
+
 void Graphics::Initialize(HWND hWnd, int width, int height)
 {
+	camera.SetFrustum(XMConvertToRadians(30.0f), (float)width / (float)height, 0.1f, 1000.0f);
+	camera.SetPosition(XMVectorSet(0.0f, 0.0f, -5.0f,1.0f));
+	camera.SetLookDirection(XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f));
 	 // create a struct to hold information about the swap chain
     DXGI_SWAP_CHAIN_DESC scd;
 
@@ -95,6 +105,7 @@ void Graphics::CreateShaders()
     dev->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), NULL, &pVS);
     dev->CreatePixelShader(PS->GetBufferPointer(), PS->GetBufferSize(), NULL, &pPS);
 
+
     // set the shader objects
     devcon->VSSetShader(pVS, 0, 0);
     devcon->PSSetShader(pPS, 0, 0);
@@ -107,6 +118,8 @@ void Graphics::CreateShaders()
     };
 
     dev->CreateInputLayout(ied, 2, VS->GetBufferPointer(), VS->GetBufferSize(), &pLayout);
+
+	//set the input layout, these changes if we are gonig to draw with another layout
 	devcon->IASetInputLayout(pLayout);
 
 	//this goes here??
@@ -123,6 +136,7 @@ void Graphics::CreateBuffer()
         {-0.45f, -0.5f, 0.0f, PackedVector::XMCOLOR(0.0f, 0.0f, 1.0f, 1.0f)}
     };
 
+
 	D3D11_BUFFER_DESC bd;
 	ZeroMemory(&bd, sizeof(bd));
 
@@ -138,7 +152,50 @@ void Graphics::CreateBuffer()
     D3D11_MAPPED_SUBRESOURCE ms;
     devcon->Map(pVBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, OurVertices, sizeof(OurVertices));                 // copy the data
-    devcon->Unmap(pVBuffer, NULL);  
+    devcon->Unmap(pVBuffer, NULL); 
+
+	//temp world matrix
+	XMMATRIX scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+	XMMATRIX translation = XMMatrixTranslation(0.0f, 0.0f, 2.0f);
+
+	XMMATRIX world = XMMatrixMultiply(scale,translation);
+	//constant buffer
+	VS_CONSTANT_BUFFER VsConstData;
+	XMMATRIX wvp = world *camera.GetViewMatrix()*camera.GetProjectionMatrix();
+	//XMMatrixTranspose(wvp);
+	XMStoreFloat4x4(&VsConstData.worldViewProjection,wvp);
+	
+
+	D3D11_BUFFER_DESC cbDesc;
+	cbDesc.ByteWidth = sizeof(VS_CONSTANT_BUFFER);
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA InitData;
+	InitData.pSysMem = &VsConstData;
+	InitData.SysMemPitch = 0;
+	InitData.SysMemSlicePitch = 0;
+
+	
+	XMVECTOR test = XMVector4Transform(XMVectorSet(0.0f, 0.5f, 0.0f, 1.0f), wvp);
+	XMVECTOR test1 = XMVector4Transform(XMVectorSet(0.45f, 0.5f, 0.0f, 1.0f),wvp);
+	XMVECTOR test2 = XMVector4Transform(XMVectorSet(-0.45f, -0.5f, 0.0f, 1.0f),wvp);
+
+	XMFLOAT4 t1, t2, t3;
+	XMStoreFloat4(&t1,test);
+	XMStoreFloat4(&t2, test1);
+	XMStoreFloat4(&t3, test2);
+
+	dev->CreateBuffer(&cbDesc, &InitData,
+		&pConstantBuffer11);
+
+	
+
+
 }
 
 void Graphics::Close()
@@ -179,10 +236,10 @@ void Graphics::Update(float dt)
     UINT stride = sizeof(VERTEX);
     UINT offset = 0;
     devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
-
+	
     // select which primtive type we are using
     devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+	devcon->VSSetConstantBuffers(0, 1, &pConstantBuffer11);
     // draw the vertex buffer to the back buffer
     devcon->Draw(3, 0);
 
