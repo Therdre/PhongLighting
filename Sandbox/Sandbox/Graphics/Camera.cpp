@@ -3,7 +3,7 @@
 using namespace DirectX;
 
 Camera::Camera(): viewMatrix(XMMatrixIdentity()), projectionMatrix(XMMatrixIdentity()),
-	              eyePosition(XMVECTOR()), target(XMVECTOR()),
+	              eyePosition(), target(),
 				  viewAngle(0.0f), ratio(0.0f),nearZ(0.0f),farZ(0.0f),
 				  dirtyProjection(false),dirtyView(false)
 
@@ -26,6 +26,7 @@ void Camera::SetPosition(float x, float y, float z)
 {
 	eyePosition = XMVectorSet(x, y, z,1.0f);
 	dirtyView = true;
+
 }
 
 void Camera::SetLookDirection(DirectX::XMVECTOR target)
@@ -42,6 +43,7 @@ void Camera::SetFrustum(float viewAngle, float aspectRatio, float nearZ, float f
 	this->farZ = farZ;
 
 	dirtyProjection = true;
+	CalculateProjectionMatrix();
 }
 
 const DirectX::XMMATRIX& Camera::GetViewMatrix()
@@ -65,7 +67,8 @@ const DirectX::XMMATRIX& Camera::GetProjectionMatrix()
 
 void Camera::CalculateViewMatrix()
 {
-	viewMatrix = XMMatrixLookAtLH(eyePosition, target, XMVectorSet(0.0f, 1.0f, 0.0f,0.0f));
+	XMVECTOR up = XMVector3Normalize(XMVector3Cross(eyePosition, target));
+	viewMatrix = XMMatrixLookAtLH(eyePosition, target, XMVectorSet(0.0f,1.0f,0.0f,0.0f));
 }
 
 void Camera::CalculateProjectionMatrix()

@@ -8,15 +8,19 @@
 
 
 #include "Camera.h"
+#include "Renderer.h"
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "dxgi.lib")
 #pragma comment (lib, "d3dcompiler.lib")
 
+
 struct VERTEX
-{	float x, y, z;
-	DirectX::PackedVector::XMCOLOR color;
+{
+	DirectX::XMFLOAT3 position;
+	DirectX::XMFLOAT4 color;
 };
+
 
 struct VS_CONSTANT_BUFFER
 {
@@ -44,9 +48,11 @@ class Graphics
 		ID3D11VertexShader *pVS;    // the vertex shader
 		ID3D11PixelShader *pPS;     // the pixel shader
 		ID3D11Buffer *pVBuffer;    // vertex buffer
+		ID3D11Buffer*   indicesBuffer; //constant buffer
 		ID3D11Buffer*   pConstantBuffer11; //constant buffer
 		ID3D11InputLayout *pLayout;    // global
 		ID3D11DepthStencilView* mDepthStencilView;
+		ID3D11RasterizerState * g_pRasterState;
 
 		void CreateViewPort(int width, int height);
 
@@ -57,6 +63,7 @@ class Graphics
 
 		//our engine stuff
 		Camera camera;
+		MeshData sphere;
 };
 
 #endif
