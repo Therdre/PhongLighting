@@ -9,6 +9,9 @@
 
 #include "Camera.h"
 #include "Renderer.h"
+#include "Lighting.h"
+#include "Material.h"
+
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "dxgi.lib")
@@ -18,13 +21,23 @@
 struct VERTEX
 {
 	DirectX::XMFLOAT3 position;
-	DirectX::XMFLOAT4 color;
+	DirectX::XMFLOAT3 color;
 };
 
 
 struct VS_CONSTANT_BUFFER
 {
+	DirectX::XMFLOAT4X4 world;
+	DirectX::XMFLOAT4X4 worldInvTraspose;
 	DirectX::XMFLOAT4X4 worldViewProjection;
+};
+
+struct PS_cbPerFrame
+{
+	DirectX::XMFLOAT3 gEyePosW;
+	float pad;
+	Material mat;
+	DirectionalLight gDirLight;	
 };
 
 class Graphics
@@ -50,6 +63,8 @@ class Graphics
 		ID3D11Buffer *pVBuffer;    // vertex buffer
 		ID3D11Buffer*   indicesBuffer; //constant buffer
 		ID3D11Buffer*   pConstantBuffer11; //constant buffer
+		ID3D11Buffer*   pConstantBufferPS; //constant buffer
+		ID3D11Buffer*   pConstantBufferPSMat; //constant buffer
 		ID3D11InputLayout *pLayout;    // global
 		ID3D11DepthStencilView* mDepthStencilView;
 		ID3D11RasterizerState * g_pRasterState;

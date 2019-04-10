@@ -2,6 +2,7 @@
 #include "Graphics.h"
 #include "d3d11_1.h"
 
+
 using namespace DirectX;
 
 Graphics::Graphics(): swapchain(NULL), dev(NULL),devcon(NULL), backbuffer(NULL), camera()
@@ -22,7 +23,7 @@ Graphics& Graphics::GetInstance()
 void Graphics::Initialize(HWND hWnd, int width, int height)
 {
 	camera.SetFrustum(XMConvertToRadians(45.0f), (float)width / (float)height, 0.3f, 5000.0f);
-	camera.SetPosition(XMVectorSet(10.0f, 0.0f, 5.0f,1.0f));
+	camera.SetPosition(XMVectorSet(10.0f, 0.0f, -5.0f,1.0f));
 	camera.SetLookDirection(XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f));
 	 // create a struct to hold information about the swap chain
     DXGI_SWAP_CHAIN_DESC scd;
@@ -144,9 +145,9 @@ void Graphics::Initialize(HWND hWnd, int width, int height)
 void Graphics::CreateShaders()
 {
 	// load and compile the two shaders
-    ID3D10Blob *VS, *PS;
+    ID3D10Blob *VS, *PS, *messages;
     D3DCompileFromFile(L"VertexShader.shader", 0, 0, "VShader", "vs_4_0", 0, 0, &VS, 0);
-    D3DCompileFromFile(L"PixelShader.shader", 0, 0, "PShader", "ps_4_0", 0, 0, &PS, 0);
+    D3DCompileFromFile(L"PixelShader.shader", 0, 0, "PShader", "ps_4_0", 0, 0, &PS, &messages);
 
 	// encapsulate both shaders into shader objects
     dev->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), NULL, &pVS);
@@ -161,7 +162,7 @@ void Graphics::CreateShaders()
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
     dev->CreateInputLayout(ied, 2, VS->GetBufferPointer(), VS->GetBufferSize(), &pLayout);
@@ -184,7 +185,7 @@ void Graphics::CreateBuffer()
     };*/
 
 	
-	sphere = MeshGenerator::GenerateSphere(	1.5f, 20, 20);
+	sphere = MeshGenerator::GenerateSphere(	1.3f, 20, 20);
 	std::vector<VERTEX> outVertices(sphere.vertices.size());
 
 	DirectX::XMFLOAT4 black(0.0f, 0.0f, 0.0f, 1.0f);
@@ -192,7 +193,7 @@ void Graphics::CreateBuffer()
 	for (unsigned i = 0;i < sphere.vertices.size();++i)
 	{
 		outVertices[i].position = sphere.vertices[i].position;
-		outVertices[i].color = black;
+		outVertices[i].color = sphere.vertices[i].normal;
 	}
 
 	D3D11_BUFFER_DESC bd;
@@ -229,16 +230,19 @@ void Graphics::CreateBuffer()
 	//temp world matrix
 	XMMATRIX scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
 	XMMATRIX rotation = XMMatrixRotationQuaternion(XMQuaternionIdentity());
-	XMMATRIX translation = XMMatrixTranslation(0.0f, 3.0f, -1.0f);
+	XMMATRIX translation = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	
 
 	XMMATRIX world = scale *rotation*translation;
+	XMMATRIX worldInverse = XMMatrixInverse(NULL,world);
 	//XMMATRIX world = translation * rotation*scale;//XMMatrixMultiply(scale, translation);
 	//constant buffer
 	VS_CONSTANT_BUFFER VsConstData;
 	XMMATRIX wvp = world *camera.GetViewMatrix()*camera.GetProjectionMatrix();
 	wvp=XMMatrixTranspose(wvp);
 	XMStoreFloat4x4(&VsConstData.worldViewProjection,wvp);
+	XMStoreFloat4x4(&VsConstData.world, XMMatrixTranspose(world));
+	XMStoreFloat4x4(&VsConstData.worldInvTraspose, worldInverse);
 	
 
 	D3D11_BUFFER_DESC cbDesc;
@@ -258,8 +262,41 @@ void Graphics::CreateBuffer()
 	dev->CreateBuffer(&cbDesc, &InitData,&pConstantBuffer11);
 
 	
+	//lights and materials
+	DirectionalLight light;
+	light.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f,1.0f);
+	light.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+	light.specular = XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f);
+	light.direction = XMFLOAT3(-0.57735f, -0.57735f, 0.57735f);
+	//light.direction = XMFLOAT3(0, 0, 0);
+
+	Material sphereMat;
+	sphereMat.ambient = XMFLOAT4(0.48f, 0.77f, 0.46f, 1.0f);
+	sphereMat.diffuse = XMFLOAT4(1.0f, 0.77f, 0.46f, 1.0f);
+	sphereMat.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 16.0f);
 
 
+	PS_cbPerFrame psConstData;
+	psConstData.gEyePosW = XMFLOAT3(10.0f, 0.0f, -5.0f);
+	psConstData.gDirLight = light;
+	psConstData.mat = sphereMat;
+
+
+	D3D11_BUFFER_DESC cpsbDesc;
+	cpsbDesc.ByteWidth = sizeof(PS_cbPerFrame);
+	cpsbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	cpsbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cpsbDesc.CPUAccessFlags = 0;
+	cpsbDesc.MiscFlags = 0;
+	cpsbDesc.StructureByteStride = 0;
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA InitDataPS;
+	InitDataPS.pSysMem = &psConstData;
+	InitDataPS.SysMemPitch = 0;
+	InitDataPS.SysMemSlicePitch = 0;
+
+	dev->CreateBuffer(&cpsbDesc, &InitDataPS, &pConstantBufferPS);
 }
 
 void Graphics::Close()
@@ -294,8 +331,8 @@ void Graphics::CreateViewPort(int width, int height)
 
 	D3D11_RASTERIZER_DESC rasterizerState;
 	ZeroMemory(&rasterizerState, sizeof(D3D11_RASTERIZER_DESC));
-	rasterizerState.FillMode = D3D11_FILL_WIREFRAME;
-	rasterizerState.CullMode = D3D11_CULL_NONE;
+	rasterizerState.FillMode = D3D11_FILL_SOLID;
+	rasterizerState.CullMode = D3D11_CULL_BACK;
 	rasterizerState.FrontCounterClockwise = false;
 	rasterizerState.DepthClipEnable = true;
 	//rasterizerState.MultisampleEnable = true;
@@ -320,6 +357,8 @@ void Graphics::Update(float dt)
     // select which primtive type we are using
     devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	devcon->VSSetConstantBuffers(0, 1, &pConstantBuffer11);
+	devcon->PSSetConstantBuffers(0, 1, &pConstantBufferPS);
+	
 	devcon->RSSetState(g_pRasterState);
     // draw the vertex buffer to the back buffer
 	devcon->DrawIndexed(sphere.indices.size(), 0, 0);

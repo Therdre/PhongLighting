@@ -142,6 +142,7 @@
     <ClCompile Include="GameLoop\GameLoop.cpp" />
     <ClCompile Include="Graphics\Camera.cpp" />
     <ClCompile Include="Graphics\Graphics.cpp" />
+    <ClCompile Include="Graphics\Lighting.cpp" />
     <ClCompile Include="Graphics\Renderer.cpp" />
     <ClCompile Include="Graphics\Transform.cpp" />
     <ClCompile Include="main.cpp" />
@@ -150,6 +151,8 @@
     <ClInclude Include="GameLoop\GameLoop.h" />
     <ClInclude Include="Graphics\Camera.h" />
     <ClInclude Include="Graphics\Graphics.h" />
+    <ClInclude Include="Graphics\Lighting.h" />
+    <ClInclude Include="Graphics\Material.h" />
     <ClInclude Include="Graphics\Renderer.h" />
     <ClInclude Include="Graphics\Transform.h" />
   </ItemGroup>
