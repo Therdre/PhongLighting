@@ -1,2 +1,2 @@
 # GraphicsSanbox
-A place where I try/practice 3d graphics
+Phong lighting implementation example using Directx11
